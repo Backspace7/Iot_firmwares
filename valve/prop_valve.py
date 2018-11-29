@@ -28,7 +28,7 @@ while true:
                             state = state +1
                             p.ChangeDutyCycle(state)
                             time.sleep(1)   # tiempo que se duerme hasta que toma la siguiente temperatura y mueve la valvula debiera ser 3 seg
-                    elif temp >= limsup and state > 3.5:
+                    elif temp >= limsup and state > 3:
                             state = state -1
                             p.ChangeDutyCycle(state)
                             time.sleep(1)
