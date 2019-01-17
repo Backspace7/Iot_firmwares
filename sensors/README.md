@@ -1,4 +1,6 @@
-# Config For therm sensor in Raspberry
+# Sensors Configuratios
+
+## Config For therm_sensor.py in Raspberry
 ###  Use 4ohm7 resistor between Signal and VCC 3v3
 
   - `sudo nano /boot/config.txt`
