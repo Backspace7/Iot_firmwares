@@ -182,9 +182,9 @@ void loop(void) {
          new_password = " ";
          new_ssid = root["ssid"];
          new_password = root["password"];
-         EEPROM.writeString(addr, new_ssid);
+         /*EEPROM.writeString(addr, new_ssid);
          EEPROM.writeString(addr+10, new_password);
-         EEPROM.commit();
+         EEPROM.commit();*/
          ssid = new_ssid;
          password = new_password;
          Serial.println("ssid and password has been changued");
