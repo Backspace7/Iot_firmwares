@@ -16,6 +16,7 @@ const char* ssid = "REDF";
 const char* password = "Capos6919c";
 String ssid_str = "REDF";
 String password_str = "Capos6919c";
+
 void setup()
 {
   Serial.begin(115200);
@@ -44,5 +45,7 @@ void loop()
     Serial.print(EEPROM.readString(addr+1)); Serial.println(" ");Serial.print(EEPROM.readString(addr+10));
   }
   i = i+1;
-  delay(500);
+ 
+
+  delay(4000);
 }
