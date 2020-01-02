@@ -357,7 +357,7 @@ void loop(void) {
     //Serial.println(Push_button_state);
    }
   
-  configure_url();
+  //configure_url();
   
 
 
