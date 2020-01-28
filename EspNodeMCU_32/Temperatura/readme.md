@@ -5,9 +5,10 @@ como tambien para multiples sensores con sus direccion, ademas contiene el lecto
 #### Configuración para sensores
   - senssor/es ds18b20
   - resistencia 4.7k ohm
-  - VCC de 3,3V
+  - cable VCC
+  - cable de GND
 
 #### set-up
     - se conecta VCC de los sensores a 3.3V
     - GND sensores a GND
-    - la ressitencia de 4.7K se conecta entre VCC y SIGNAL 
+    - la ressitencia de 4.7K se conecta en serie con VCC y SIGNAL 

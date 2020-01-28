@@ -6,7 +6,7 @@ Este codigo tiene por onjetivo la deteccion digital de una señal por medio de u
   - Resistencia 200 ohm y 330ohm
   - boton simple
   - cables
-  - - VCC de 3,3V
+  - VCC de 3,3V
  
 #### set-up
     - Desde la salida del boton se conecta un cable a GND

@@ -1,4 +1,3 @@
-#include <Wire.h>  //lib para comunicação i2c
 #define MQ_analog 12//pino analógico do sensor de gás
 #define MQ_dig 13    //pino digital do sensor de gás
 int sensorThres = 900; // detecta butano
