@@ -9,6 +9,7 @@
 #include <HTTPClient.h>
 #include <SFE_BMP180.h>
 #include "DHT.h"
+#include "base64.h"
 
 #define PN532_SCK  (18)
 #define PN532_MOSI (23)
@@ -34,10 +35,9 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 StaticJsonBuffer<200> jsonBuffer;
+StaticJsonBuffer<2000> TokenjsonBuffer;
 
 bool button_status=false;
-int lightCal;
-int lightVal;
 const int sensorThres = 900;
 uint8_t sensor1[8] = { 0x28, 0x9C, 0xB4, 0x77, 0x91, 0x11, 0x2, 0xBB };
 uint8_t sensor2[8] = { 0x28, 0xF1, 0x4E, 0x77, 0x91, 0xB, 0x2, 0x22 };
@@ -49,6 +49,8 @@ const char* url =  "midominio.cl/recuros";
 const char* new_ssid ;
 const char* new_password;
 const char* new_url;
+const char* token;
+String input;
 String new_ssid_str;
 String new_password_str;
 String new_url_str;
@@ -227,11 +229,16 @@ void bmp_sensor(){
           Serial.print(" *C , ");
           Serial.print("Presion: ");
           Serial.print(P,2);
-          Serial.println(" mb");          
+          Serial.println(" mb");
+          String payload = "{\"dat\":"+String(T)+",\"suid\":12,\"tuid\":10}";
+          send_data_to_API(payload);
+          payload = "{\"dat\":"+String(P)+",\"suid\":3,\"tuid\":3}";
+          send_data_to_API(payload);          
         }      
       }      
     }   
-  }   
+  }
+     
 }
 
 void dht22_sensor(){
@@ -249,27 +256,37 @@ void dht22_sensor(){
   Serial.print("Temperatura: "); 
   Serial.print(t);
   Serial.println(" *C ");
+  
+  String payload = "{\"dat\":"+String(h)+",\"suid\":8,\"tuid\":11}";
+  send_data_to_API(payload);
+  payload = "{\"dat\":"+String(t)+",\"suid\":11,\"tuid\":12}";
+  send_data_to_API(payload);
+  
 }
-void printTemperature(DeviceAddress deviceAddress){// cambiar el print por return para ponerlo en el json y enviar los dtos a la api  
+float printTemperature(DeviceAddress deviceAddress){// cambiar el print por return para ponerlo en el json y enviar los dtos a la api  
      float tempC = sensors.getTempC(deviceAddress);
      Serial.print(tempC);
      Serial.print("°C  |  ");
      Serial.print(DallasTemperature::toFahrenheit(tempC));
-     Serial.println("°F");  
+     Serial.println("°F");
+     return tempC;
 }
 
 void ds18b20_sensors(){
    sensors.requestTemperatures();
    Serial.print("Sensor 1: ");
-   printTemperature(sensor1);
+   float tempc = printTemperature(sensor1);
    Serial.print("Sensor 2: ");
-   printTemperature(sensor2);  
+   printTemperature(sensor2); 
+   String payload = "{\"dat\":"+String(tempc)+",\"suid\":5,\"tuid\":9}";
+   send_data_to_API(payload); 
 }
 void mq4_sensor(){
- int analogSensor = analogRead(MQ_analog);
+  int analogSensor = analogRead(MQ_analog);
   int digitalSensor = digitalRead(MQ_dig);
   Serial.print("Pin A0 nivel de voltaje por ppmm: ");
-  Serial.println(analogSensor* (5.0 / 1023.0));
+  float nivel_voltaje = analogSensor* (5.0 / 1023.0);
+  Serial.println(nivel_voltaje);
   Serial.print("Pin D0 indicador de deteccion de gas: ");
   Serial.println(digitalSensor);
   if (analogSensor > sensorThres){
@@ -278,26 +295,23 @@ void mq4_sensor(){
   else{
     Serial.print("STATE : green\n");
   }  
+  String payload = "{\"dat\":"+String(nivel_voltaje)+",\"suid\":10,\"tuid\":5}";
+  send_data_to_API(payload);
 }
 
 void light_sensor(){
-   //Take a reading using analogRead() on sensor pin and store it in lightVal
-  lightVal = analogRead(lightPin);
-
-
-  //if lightVal is less than our initial reading (lightCal) minus 50 it is dark and
-  //turn pin 9 HIGH. The (-50) part of the statement sets the sensitivity. The smaller
-  //the number the more sensitive the circuit will be to variances in light.
-  if (lightVal < lightCal - 50)
-  {
-    Serial.println("no luz");
+  
+  float lightVal = analogRead(lightPin);
+  Serial.println(lightVal);
+  if (lightVal < 135){
+    Serial.print("no luz, Nivel de Luz:");
+    Serial.println(lightVal);
+  }else{
+    Serial.print(" luz, Nivel de Luz:");
+    Serial.println(lightVal);
   }
-
-  //else, it is bright, turn pin 9 LOW
-  else
-  {
-    Serial.println("luz");
-  }  
+  String payload = "{\"dat\":"+String(lightVal)+",\"suid\":13,\"tuid\":13}";
+  send_data_to_API(payload);
 }
 void setup(void) {
      
@@ -305,7 +319,6 @@ void setup(void) {
      if (!EEPROM.begin(EEPROM_SIZE)){      
          Serial.println("failed to initialise EEPROM"); delay(1000000);    
      }
-     lightCal = analogRead(lightPin);
      new_ssid_str = EEPROM.readString(addr);
      new_password_str = EEPROM.readString(addr+10);
      new_url_str = EEPROM.readString(addr+25);
@@ -344,23 +357,55 @@ void setup(void) {
 }
 
 void send_data_to_API(String payload){
-   HTTPClient http; 
-   http.begin("http://jsonplaceholder.typicode.com/posts");  //Specify destination for HTTP request
-   http.addHeader("Content-Type", "application/json");             //Specify content-type header  
-  int httpResponseCode = http.POST(payload);   //Send the actual POST request 
+   HTTPClient http;
+   
+   http.begin("http://192.168.0.18:3030/records");  //Specify destination for HTTP request
+   http.addHeader("Content-Type", "application/json");             //Specify content-type header   
+  // Serial.println("bearer + token");
+  // Serial.println(input);
+   http.addHeader("Authorization",input);  
+   int httpResponseCode = http.POST(payload);   //Send the actual POST request 
    if(httpResponseCode>0){ 
     String response = http.getString();                       //Get the response to the request 
     Serial.println(httpResponseCode);   //Print return code
-    Serial.println(response);           //Print request answer 
+    Serial.println(response);           //Print request answer     
    }else{ 
     Serial.print("Error on sending POST: ");
-    Serial.println(httpResponseCode); 
+    Serial.println(httpResponseCode);
    } 
    http.end();  //Free resources  
 }
+
+void basic_auth(){
+    HTTPClient http;
+    String payload2 = "{\"strategy\":\"local\",\"email\":\"hello@feather.com\",\"password\":\"supersecret\"}";
+    //Serial.println(payload2);
+    http.begin("http://192.168.0.18:3030/authentication");
+    http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+    http.addHeader("Content-Type", "application/json");
+    http.addHeader("authentication", "\"strategy\":\"local\"");
+    int httpCode = http.POST(payload2);
+    
+    if (httpCode > 0) { //Check for the returning code
+         String payload3 = http.getString();
+         Serial.println(httpCode);
+        // Serial.println(payload3);
+         JsonObject& root = TokenjsonBuffer.parseObject(payload3);
+         token =root["accessToken"];
+        // Serial.println("token:");
+        // Serial.println(token);
+        // Serial.println("token end:");
+    }else {
+         Serial.println("Error on HTTP request");
+    }
+    http.end();
+
+   input = String() + "Bearer " + token;
+          
+}
 void loop(void) {  
   
-  //String payload = "{\"body\":\"bar\",\"title\":\"foo\",\"userId\":1}";  
+ 
   if(WiFi.status()!= WL_CONNECTED){
      digitalWrite(WIFIPIN,LOW);
      connectToNetwork();
@@ -369,12 +414,14 @@ void loop(void) {
    Serial.println("Status ok ----");
    Serial.println(WiFi.localIP());
    digitalWrite(WIFIPIN, HIGH);
+   basic_auth();
    bmp_sensor();
    dht22_sensor();
    light_sensor();
    ds18b20_sensors();
-   mq4_sensor();   
-   //send_data_to_API(payload)   
+   mq4_sensor();  
+   esp_sleep_enable_timer_wakeup(1800 * 1000000);
+   esp_deep_sleep_start();
   }
   delay(3000);
   int Push_button_state = digitalRead(PushButton);
@@ -386,7 +433,6 @@ void loop(void) {
   }
   else{
     digitalWrite(LEDPIN, LOW); 
-    //Serial.println(Push_button_state);
   }  
   if ( Push_button_state2 == LOW ){ 
     digitalWrite(LEDPIN2, HIGH); 
@@ -394,7 +440,6 @@ void loop(void) {
   }
   else{
     digitalWrite(LEDPIN2, LOW); 
-    //Serial.println(Push_button_state);
    }
 
   if ( Push_button_state3 == LOW ){ 
