@@ -18,7 +18,7 @@
 // As usual, we'll create constants to name the pins we're using.
 // This will make it easier to follow the code below.
 
-const int sensorPin = 14;
+const int sensorPin = 32;
 
 // We'll also set up some global variables for the light level a calibration value and
 //and a raw light value
