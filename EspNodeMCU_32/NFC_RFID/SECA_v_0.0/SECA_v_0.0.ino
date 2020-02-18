@@ -24,11 +24,11 @@
 #define LEDPIN2 12
 #define LEDPIN3 27
 #define WIFIPIN 16
-#define PushButton 25 //15 13 12 14 27 33 32 botones 
+#define PushButton 25 
 #define PushButton2 26
-#define PushButton3 35
+#define PushButton3 15
 #define lightPin 36
-#define pinmask 0x806000000
+#define BUTTON_PIN_BITMASK 0x6008000
 DHT dht(DHTPIN, DHTTYPE);
 SFE_BMP180 bmp180;
 OneWire oneWire(ONE_WIRE_BUS);
@@ -371,7 +371,13 @@ void light_sensor(){
   String payload = "{\"dat\":"+String(UV_Val_RAMBAL)+",\"suid\":13,\"tuid\":13}";
   send_data_to_API(payload);
 }
-
+String print_GPIO_wake_up(){
+  int GPIO_reason = esp_sleep_get_ext1_wakeup_status();
+  Serial.print("GPIO that triggered the wake up: GPIO ");
+  float GPIO = (float)log(GPIO_reason)/log(2);
+  Serial.println(GPIO);
+  return String(GPIO);
+}
 void setup(void) {
      
      Serial.begin(115200);    
@@ -412,7 +418,8 @@ void setup(void) {
      pinMode(WIFIPIN, OUTPUT);
      pinMode(PushButton, INPUT);     
      pinMode(PushButton2, INPUT);
-     pinMode(PushButton3, INPUT);     
+     pinMode(PushButton3, INPUT);    
+     esp_sleep_enable_ext1_wakeup(BUTTON_PIN_BITMASK,ESP_EXT1_WAKEUP_ANY_HIGH);
 }
 
 void send_data_to_API(String payload){
@@ -472,7 +479,32 @@ void basic_auth(){
 }
 void loop(void) {  
   
- 
+  int Push_button_state = digitalRead(PushButton);
+  int Push_button_state2 = digitalRead(PushButton2);
+  int Push_button_state3 = digitalRead(PushButton3);
+  
+   if ( print_GPIO_wake_up() == "15.00"){ 
+    digitalWrite(LEDPIN3, HIGH); 
+    delay(2000);
+    ESP.restart();
+  }
+  else{
+    digitalWrite(LEDPIN3, LOW); 
+   }
+   if ( print_GPIO_wake_up() == "25.00" ){ 
+    digitalWrite(LEDPIN, HIGH); 
+    configureEsp32Network();
+  }
+  else{
+    digitalWrite(LEDPIN, LOW); 
+  }  
+  if ( print_GPIO_wake_up() == "26.00" ){ 
+    digitalWrite(LEDPIN2, HIGH); 
+    configure_url();
+  }
+  else{
+    digitalWrite(LEDPIN2, LOW); 
+   }  
   if(WiFi.status()!= WL_CONNECTED){
      count_toRestart = count_toRestart +1;
      if(count_toRestart ==10){
@@ -498,33 +530,7 @@ void loop(void) {
    esp_deep_sleep_start();
   }
   delay(3000);
-  int Push_button_state = digitalRead(PushButton);
-  int Push_button_state2 = digitalRead(PushButton2);
-  int Push_button_state3 = digitalRead(PushButton3);
-  if ( Push_button_state == LOW ){ 
-    digitalWrite(LEDPIN, HIGH); 
-    configureEsp32Network();
-  }
-  else{
-    digitalWrite(LEDPIN, LOW); 
-  }  
-  if ( Push_button_state2 == LOW ){ 
-    digitalWrite(LEDPIN2, HIGH); 
-    configure_url();
-  }
-  else{
-    digitalWrite(LEDPIN2, LOW); 
-   }
-
-  if ( Push_button_state3 == LOW ){ 
-    
-    digitalWrite(LEDPIN3, HIGH); 
-    delay(2000);
-    ESP.restart();
-  }
-  else{
-    digitalWrite(LEDPIN3, LOW); 
-   }  
+  
    
   
 }
