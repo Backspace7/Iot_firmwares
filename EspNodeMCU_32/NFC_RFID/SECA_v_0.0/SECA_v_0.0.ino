@@ -18,17 +18,17 @@
 #define ONE_WIRE_BUS 4
 #define DHTPIN 17
 #define DHTTYPE DHT22
-#define MQ_analog 36
+#define MQ_analog 32
 #define MQ_dig 13
 #define LEDPIN 2
 #define LEDPIN2 12
 #define LEDPIN3 27
 #define WIFIPIN 16
-#define PushButton 25
+#define PushButton 25 //15 13 12 14 27 33 32 botones 
 #define PushButton2 26
 #define PushButton3 35
-#define lightPin 32
-
+#define lightPin 36
+#define pinmask 0x806000000
 DHT dht(DHTPIN, DHTTYPE);
 SFE_BMP180 bmp180;
 OneWire oneWire(ONE_WIRE_BUS);
@@ -38,6 +38,8 @@ StaticJsonBuffer<200> jsonBuffer;
 StaticJsonBuffer<2000> TokenjsonBuffer;
 
 bool button_status=false;
+int count_toRestart=0;
+int count_toReconnect=0;
 const int sensorThres = 900;
 uint8_t sensor1[8] = { 0x28, 0x9C, 0xB4, 0x77, 0x91, 0x11, 0x2, 0xBB };
 uint8_t sensor2[8] = { 0x28, 0xF1, 0x4E, 0x77, 0x91, 0xB, 0x2, 0x22 };
@@ -298,21 +300,78 @@ void mq4_sensor(){
   String payload = "{\"dat\":"+String(nivel_voltaje)+",\"suid\":10,\"tuid\":5}";
   send_data_to_API(payload);
 }
-
-void light_sensor(){
+float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+int averageAnalogRead(int pinToRead)
+{
+  byte numberOfReadings = 8;
+  unsigned int runningValue = 0; 
+ 
+  for(int x = 0 ; x < numberOfReadings ; x++)
+    delay(100);
+    runningValue += analogRead(pinToRead);
+  runningValue /= numberOfReadings;
   
-  float lightVal = analogRead(lightPin);
-  Serial.println(lightVal);
-  if (lightVal < 135){
-    Serial.print("no luz, Nivel de Luz:");
-    Serial.println(lightVal);
-  }else{
-    Serial.print(" luz, Nivel de Luz:");
-    Serial.println(lightVal);
+  return(runningValue);  
+ 
+}
+void light_sensor(){
+  Serial.print("El indice UV es: ");
+  float UV_Val_RAMBAL;
+  float sum = 0;
+  float v=0;
+  int s=5;
+  
+  analogReadResolution(10);
+  v = analogRead(lightPin);
+  delay(500);
+  for(int i=0; i<s; i++) {
+    v = analogRead(lightPin);
+    sum = v + sum;
+    delay(100);
   }
-  String payload = "{\"dat\":"+String(lightVal)+",\"suid\":13,\"tuid\":13}";
+  UV_Val_RAMBAL = sum/s;
+  float outputVoltage =UV_Val_RAMBAL*3.3/1024;
+  float uvIntensity = mapfloat(outputVoltage, 0.99, 2.9, 0.0, 15.0);
+  Serial.println("analogico : "+String(UV_Val_RAMBAL)); 
+  Serial.println("analogico a dig: "+String(outputVoltage));
+  Serial.println("uv intensity mW/cm^2: "+String(uvIntensity));
+  Serial.println("analogico a nivel de raduv : "+String(outputVoltage/0.1));
+  Serial.print(" Tensión (mV): "+String(UV_Val_RAMBAL*1.07526881720430107527,DEC)+"\n"); 
+  if(UV_Val_RAMBAL < 50){
+    Serial.println("0, nivel bajo");  }
+  else  {  if(UV_Val_RAMBAL < 210)  {
+    Serial.println("1, nivel bajo");  }
+  else  {  if(UV_Val_RAMBAL < 295)  {
+    Serial.println("2, nivel bajo");  }
+  else  {  if(UV_Val_RAMBAL < 378)  {
+    Serial.println("3, nivel moderado");  }
+  else  {  if(UV_Val_RAMBAL < 467)  {
+    Serial.println("4, nivel moderado");  }
+  else  {  if(UV_Val_RAMBAL < 563)  {
+    Serial.println("5, nivel moderado");  }
+  else  {  if(UV_Val_RAMBAL < 646)  {
+    Serial.println("6, nivel ALTO");  }
+  else  {  if(UV_Val_RAMBAL < 738)  {
+    Serial.println("7, nivel ALTO");  }
+  else  {  if(UV_Val_RAMBAL < 818)  {
+    Serial.println("8, nivel MUY ALTO");  }
+  else  {  if(UV_Val_RAMBAL < 907)  {
+    Serial.println("9, nivel MUY ALTO");  }
+  else  {  if(UV_Val_RAMBAL < 1003)  {
+    Serial.println("10, nivel MUY ALTO");  }
+  else  {  if(UV_Val_RAMBAL < 1022)  {
+    Serial.println("11, nivel Ext. ALTO 'Peligro'");  }
+  else  {
+    Serial.println("11+, nivel Ext. ALTO 'Peligro'");  }
+  }}}}}}}}}}}
+  delay(500);  
+  String payload = "{\"dat\":"+String(UV_Val_RAMBAL)+",\"suid\":13,\"tuid\":13}";
   send_data_to_API(payload);
 }
+
 void setup(void) {
      
      Serial.begin(115200);    
@@ -359,7 +418,7 @@ void setup(void) {
 void send_data_to_API(String payload){
    HTTPClient http;
    
-   http.begin("http://192.168.0.18:3030/records");  //Specify destination for HTTP request
+   http.begin(new_url_str);  //Specify destination for HTTP request
    http.addHeader("Content-Type", "application/json");             //Specify content-type header   
   // Serial.println("bearer + token");
   // Serial.println(input);
@@ -372,6 +431,14 @@ void send_data_to_API(String payload){
    }else{ 
     Serial.print("Error on sending POST: ");
     Serial.println(httpResponseCode);
+    if(httpResponseCode==-1 ||httpResponseCode==-11 ){
+      count_toReconnect=count_toReconnect+1;
+      if(count_toReconnect>3){
+        count_toReconnect=0;
+        ESP.restart();  
+      }  
+    }
+   
    } 
    http.end();  //Free resources  
 }
@@ -380,7 +447,7 @@ void basic_auth(){
     HTTPClient http;
     String payload2 = "{\"strategy\":\"local\",\"email\":\"hello@feather.com\",\"password\":\"supersecret\"}";
     //Serial.println(payload2);
-    http.begin("http://192.168.0.18:3030/authentication");
+    http.begin("http://192.168.0.10:3030/authentication");
     http.addHeader("Content-Type", "application/x-www-form-urlencoded");
     http.addHeader("Content-Type", "application/json");
     http.addHeader("authentication", "\"strategy\":\"local\"");
@@ -407,6 +474,11 @@ void loop(void) {
   
  
   if(WiFi.status()!= WL_CONNECTED){
+     count_toRestart = count_toRestart +1;
+     if(count_toRestart ==10){
+        count_toRestart=0;
+        ESP.restart();
+     }
      digitalWrite(WIFIPIN,LOW);
      connectToNetwork();
      delay(3000);
@@ -417,10 +489,12 @@ void loop(void) {
    basic_auth();
    bmp_sensor();
    dht22_sensor();
-   light_sensor();
    ds18b20_sensors();
-   mq4_sensor();  
-   esp_sleep_enable_timer_wakeup(1800 * 1000000);
+   mq4_sensor();
+   light_sensor();
+   uint64_t timetosleep = 3600;
+   uint64_t multiplier = 1000000;  
+   esp_sleep_enable_timer_wakeup(timetosleep * multiplier);
    esp_deep_sleep_start();
   }
   delay(3000);
