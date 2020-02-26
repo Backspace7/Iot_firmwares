@@ -304,28 +304,14 @@ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-int averageAnalogRead(int pinToRead)
-{
-  byte numberOfReadings = 8;
-  unsigned int runningValue = 0; 
- 
-  for(int x = 0 ; x < numberOfReadings ; x++)
-    delay(100);
-    runningValue += analogRead(pinToRead);
-  runningValue /= numberOfReadings;
-  
-  return(runningValue);  
- 
-}
+
 void light_sensor(){
-  Serial.print("El indice UV es: ");
   float UV_Val_RAMBAL;
   float sum = 0;
   float v=0;
   int s=5;
-  
+
   analogReadResolution(10);
-  v = analogRead(lightPin);
   delay(500);
   for(int i=0; i<s; i++) {
     v = analogRead(lightPin);
@@ -333,43 +319,83 @@ void light_sensor(){
     delay(100);
   }
   UV_Val_RAMBAL = sum/s;
-  float outputVoltage =UV_Val_RAMBAL*3.3/1024;
-  float uvIntensity = mapfloat(outputVoltage, 0.99, 2.9, 0.0, 15.0);
-  Serial.println("analogico : "+String(UV_Val_RAMBAL)); 
-  Serial.println("analogico a dig: "+String(outputVoltage));
+  float uvIntensity = mapfloat(UV_Val_RAMBAL*1170/1023,0.99, 2.9, 0.0, 15.0);
+  Serial.println("analogico promedio: "+String(UV_Val_RAMBAL)); 
   Serial.println("uv intensity mW/cm^2: "+String(uvIntensity));
-  Serial.println("analogico a nivel de raduv : "+String(outputVoltage/0.1));
-  Serial.print(" Tensión (mV): "+String(UV_Val_RAMBAL*1.07526881720430107527,DEC)+"\n"); 
+  Serial.println("uv intensity W/m^2: "+String(uvIntensity/10));
+  Serial.print(" Tensión (mV): "+String(UV_Val_RAMBAL*1.143695015,DEC)+"\n"); 
   if(UV_Val_RAMBAL < 50){
-    Serial.println("0, nivel bajo");  }
-  else  {  if(UV_Val_RAMBAL < 210)  {
-    Serial.println("1, nivel bajo");  }
-  else  {  if(UV_Val_RAMBAL < 295)  {
-    Serial.println("2, nivel bajo");  }
-  else  {  if(UV_Val_RAMBAL < 378)  {
-    Serial.println("3, nivel moderado");  }
-  else  {  if(UV_Val_RAMBAL < 467)  {
-    Serial.println("4, nivel moderado");  }
-  else  {  if(UV_Val_RAMBAL < 563)  {
-    Serial.println("5, nivel moderado");  }
-  else  {  if(UV_Val_RAMBAL < 646)  {
-    Serial.println("6, nivel ALTO");  }
-  else  {  if(UV_Val_RAMBAL < 738)  {
-    Serial.println("7, nivel ALTO");  }
-  else  {  if(UV_Val_RAMBAL < 818)  {
-    Serial.println("8, nivel MUY ALTO");  }
-  else  {  if(UV_Val_RAMBAL < 907)  {
-    Serial.println("9, nivel MUY ALTO");  }
-  else  {  if(UV_Val_RAMBAL < 1003)  {
-    Serial.println("10, nivel MUY ALTO");  }
-  else  {  if(UV_Val_RAMBAL < 1022)  {
-    Serial.println("11, nivel Ext. ALTO 'Peligro'");  }
-  else  {
-    Serial.println("11+, nivel Ext. ALTO 'Peligro'");  }
+    Serial.println("0, nivel bajo");  
+    String payload = "{\"dat\":0,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 210)  {
+    Serial.println("1, nivel bajo");  
+    String payload = "{\"dat\":1,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{
+    if(UV_Val_RAMBAL < 295)  {
+    Serial.println("2, nivel bajo");  
+    String payload = "{\"dat\":2,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);  
+  }else{  
+    if(UV_Val_RAMBAL < 378)  {
+    Serial.println("3, nivel moderado");  
+    String payload = "{\"dat\":3,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 467)  {
+    Serial.println("4, nivel moderado");  
+    String payload = "{\"dat\":4,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 563)  {
+    Serial.println("5, nivel moderado");  
+    String payload = "{\"dat\":5,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 646)  {
+    Serial.println("6, nivel ALTO");  
+    String payload = "{\"dat\":6,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 738)  {
+    Serial.println("7, nivel ALTO");  
+    String payload = "{\"dat\":7,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 818)  {
+    Serial.println("8, nivel MUY ALTO");  
+    String payload = "{\"dat\":8,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 907)  {
+    Serial.println("9, nivel MUY ALTO");  
+    String payload = "{\"dat\":9,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  
+    if(UV_Val_RAMBAL < 1003)  {
+    Serial.println("10, nivel MUY ALTO");  
+    String payload = "{\"dat\":10,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{  if(UV_Val_RAMBAL < 1022){
+    Serial.println("11, nivel Ext. ALTO 'Peligro'");  
+    String payload = "{\"dat\":11,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+  }else{
+    Serial.println("11+, nivel Ext. ALTO 'Peligro'");  
+    String payload = "{\"dat\":11,\"suid\":14,\"tuid\":13}";
+    send_data_to_API(payload);
+    }
   }}}}}}}}}}}
   delay(500);  
-  String payload = "{\"dat\":"+String(UV_Val_RAMBAL)+",\"suid\":13,\"tuid\":13}";
+  
+  String payload = "{\"dat\":"+String(uvIntensity,DEC)+",\"suid\":13,\"tuid\":13}";
+  if(uvIntensity<0){
+     payload = "{\"dat\":0,\"suid\":13,\"tuid\":13}";
+  }
   send_data_to_API(payload);
+  
 }
 String print_GPIO_wake_up(){
   int GPIO_reason = esp_sleep_get_ext1_wakeup_status();
